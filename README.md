@@ -20,18 +20,15 @@ All the bitmap parsing related codes are in `bitmap.rs` file. Other folders are 
 
 Structure of a bitmap file can be pretty different based of the types. Here, we only use the important bits of structure we need.
 
-Unlike in my TypeScript implementation, we load the whole bitmap into a single `BitmapFile` struct to save time and pain in the ass ;)
-
 ```rs
-struct BitmapFile {
-
-    // BitmapFileHeader:
+struct BitmapFileHeader {
     signature: u16,             // 2 bytes - BMP File Signature
     size: u32,                  // 4 bytes - Size of BMP File
     reserved: u32,              // 4 bytes = Reserved buffer generally used by application creating the image
     bits_offset: u32,           // 4 bytes = Offset at which the pixel data starts
+}
 
-    // BitmapImageHeader:
+struct BitmapImageHeader {
     header_size: u32,           // 4 bytes - The size of this header
     width: i32,                 // 4 bytes - Width of the Image in pixels
     height: i32,                // 4 bytes - Height of the Image in pixels
@@ -43,11 +40,7 @@ struct BitmapFile {
     pix_per_meter_y: i32,       // 4 bytes - Vertical res; pixel per meter (signed int)
     color_count: u32,           // 4 bytes - no. of colors in color palette
     imp_color_count: u32,       // 4 bytes - no. of imp. colors; usually ignored
-
-    // other....                not needed so skipped
-
-    // Pixel Data:
-    pixel_data: Vec<u8>,        // read directly starting from bits_offset value
+    // other unused headers...
 }
 ```
 
