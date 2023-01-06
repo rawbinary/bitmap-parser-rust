@@ -1,0 +1,17 @@
+[package]
+name = "bitmap"
+version = "0.1.0"
+edition = "2021"
+authors = ["Robin Panta <hacktivistic@gmail.com>"]
+license = "MIT"
+repository = "https://www.github.com/rawbinary/bitmap-parser-rust"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "bitmap"
+path = "src/bitmap.rs"
+
+[dependencies]
+byteorder="1.4.3"
+hex="0.4.3"

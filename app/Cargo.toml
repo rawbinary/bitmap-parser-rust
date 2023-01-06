@@ -1,0 +1,9 @@
+[package]
+name = "app"
+version = "0.1.0"
+edition = "2021"
+authors = ["Robin Panta <hacktivistic@gmail.com>"]
+repository = "https://www.github.com/rawbinary/bitmap-parser-rust/app"
+
+[dependencies]
+bitmap = { path = "../lib" }
