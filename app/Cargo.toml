@@ -7,3 +7,4 @@ repository = "https://www.github.com/rawbinary/bitmap-parser-rust/app"
 
 [dependencies]
 bitmap = { path = "../lib" }
+pixel-canvas="0.2.3"
