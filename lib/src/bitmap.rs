@@ -198,46 +198,21 @@ impl BitmapFile {
                 return Err(Error::InvalidPixelData);
             }
 
-            // let mut pixel_array_bgra: Vec<Vec<BGRA>> = Vec::new();
+            let mut pixel_array_bgra: Vec<Vec<BGRA>> = Vec::new();
+            for i in 0..bmp_image_header.height {
+                let pixel_line = load_part(line_width as usize);
 
-            // for i in 0..bmp_image_header.height {
-            //     let pixel_line = load_part(line_width as usize);
-
-            //     let line_array = pixel_line
-            //         .chunks_exact(3)
-            //         .map(|c| BGRA {
-            //             blue: c[0],
-            //             green: c[1],
-            //             red: c[2],
-            //             alpha: 255,
-            //         })
-            //         .collect::<Vec<BGRA>>();
-            //     pixel_array_bgra.push(line_array);
-            // }
-
-            let mut pixel_data: Vec<u8> = load_part(pixel_data_size);
-            let mut pixel_array_bgra = pixel_data
-                .chunks(line_width as usize)
-                .map(|mut line| {
-                    let mut ew_line = line.to_vec().clone();
-                    let mut pixx = ew_line
-                        .chunks(3)
-                        .filter_map(|c| {
-                            if (c.len() == 3) {
-                                return Some(BGRA {
-                                    blue: c[0],
-                                    green: c[1],
-                                    red: c[2],
-                                    alpha: 0,
-                                });
-                            } else {
-                                return None;
-                            }
-                        })
-                        .collect::<Vec<BGRA>>();
-                    pixx
-                })
-                .collect::<Vec<Vec<BGRA>>>();
+                let line_array = pixel_line
+                    .chunks_exact(3)
+                    .map(|c| BGRA {
+                        blue: c[0],
+                        green: c[1],
+                        red: c[2],
+                        alpha: 255,
+                    })
+                    .collect::<Vec<BGRA>>();
+                pixel_array_bgra.push(line_array);
+            }
 
             Ok(BitmapFile {
                 file_header: bmp_file_header,
