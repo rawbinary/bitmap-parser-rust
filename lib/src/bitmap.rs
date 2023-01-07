@@ -1,11 +1,6 @@
-#![allow(unused)]
-
 mod error;
 
-use std::{
-    fmt::format,
-    io::{BufReader, Read, Seek, SeekFrom},
-};
+use std::io::{BufReader, Read};
 
 /**
  * Robin's Bitmap Parser
@@ -17,7 +12,6 @@ use std::{
  */
 use crate::error::Error;
 use byteorder::{ByteOrder, LittleEndian};
-use hex;
 
 #[derive(Debug)]
 pub struct BitmapFileHeader {
@@ -42,20 +36,11 @@ pub struct BitmapImageHeader {
     imp_color_count: u32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct BGRA {
     pub blue: u8,
     pub green: u8,
     pub red: u8,
-    alpha: u8,
-}
-
-#[derive(Debug)]
-pub struct RGBA {
-    red: u8,
-    green: u8,
-    blue: u8,
-    alpha: u8,
 }
 
 type PixelArray = Vec<Vec<BGRA>>;
@@ -89,22 +74,18 @@ impl BGRA {
                 blue: buf[0],
                 green: buf[1],
                 red: buf[2],
-                alpha: buf[3],
             }),
             n => Err(Error::InvalidRange(n)),
         }
     }
 }
 
-const SUPPORTED_COMPRESSION: [u32; 2] = [
-    CompressionMethod::BiRgb as u32,
-    CompressionMethod::BiRle8 as u32,
-];
+const SUPPORTED_COMPRESSION: [u32; 1] = [CompressionMethod::BiRgb as u32];
 const SUPPORTED_BIT_DEPTH: [u16; 3] = [8, 16, 24];
 
 impl BitmapFile {
     pub fn load(filename: &str) -> Result<BitmapFile, Error> {
-        let mut file = std::fs::File::open(filename).unwrap();
+        let file = std::fs::File::open(filename).unwrap();
 
         let mut reader = BufReader::new(file.try_clone().unwrap());
 
@@ -127,7 +108,7 @@ impl BitmapFile {
         };
 
         let bmp_sig: u16 = 0x4d42;
-        if (bmp_file_header.signature != bmp_sig) {
+        if bmp_file_header.signature != bmp_sig {
             return Err(Error::InvalidSignature);
         }
 
@@ -145,82 +126,83 @@ impl BitmapFile {
             imp_color_count: LittleEndian::read_u32(&load_part(4)),
         };
 
-        if (!SUPPORTED_COMPRESSION.contains(&bmp_image_header.compression_method)) {
+        if !SUPPORTED_COMPRESSION.contains(&bmp_image_header.compression_method) {
             return Err(Error::UnsupportedCompression);
         }
 
-        if (!SUPPORTED_BIT_DEPTH.contains(&bmp_image_header.bit_depth)) {
+        if !SUPPORTED_BIT_DEPTH.contains(&bmp_image_header.bit_depth) {
             return Err(Error::UnsupportedBitDepth);
         }
 
         // Color Tables
 
         // Since color tables start after headers and headers can differ from types, we seek to end of header
-        if (bmp_image_header.header_size > 40) {
+        if bmp_image_header.header_size > 40 {
             let _ = &load_part((40 - bmp_image_header.header_size) as usize);
         }
 
         let mut color_table_size = 0;
 
-        if (bmp_image_header.bit_depth == 1) {
+        if bmp_image_header.bit_depth == 1 {
             color_table_size = 2;
-        } else if (bmp_image_header.bit_depth == 4) {
+        } else if bmp_image_header.bit_depth == 4 {
             color_table_size = 16;
-        } else if (bmp_image_header.bit_depth == 8) {
+        } else if bmp_image_header.bit_depth == 8 {
             color_table_size = 256;
         }
 
-        let color_table: Vec<BGRA> = Vec::new();
+        // let mut color_table: Vec<BGRA> = Vec::new();
 
-        if (color_table_size != 0) {
-            let color_table: Vec<BGRA> = load_part(4 * bmp_image_header.color_count as usize)
-                .chunks(4)
-                .map(|x| BGRA::from_buffer(x).unwrap())
-                .collect();
-        }
+        // if color_table_size != 0 {
+        //     color_table = load_part(4 * bmp_image_header.color_count as usize)
+        //         .chunks(4)
+        //         .map(|x| BGRA::from_buffer(x).unwrap())
+        //         .collect();
+        // }
 
-        let bitmap_size = bmp_image_header.width * bmp_image_header.height;
+        // let bitmap_size = bmp_image_header.width * bmp_image_header.height;
 
         let line_width =
             ((bmp_image_header.width * bmp_image_header.bit_depth as i32 / 8) + 3) & !3;
 
-        if (bmp_file_header.bits_offset > 14 + bmp_image_header.header_size + color_table_size) {
+        if bmp_file_header.bits_offset > 14 + bmp_image_header.header_size + color_table_size {
             let _ = &load_part(
                 (bmp_file_header.bits_offset - 14 - bmp_image_header.header_size - color_table_size)
                     as usize,
             );
         }
 
-        if (bmp_image_header.compression_method == CompressionMethod::BiRgb as u32) {
+        let mut pixel_matrix: Vec<Vec<BGRA>> = Vec::new();
+
+        if bmp_image_header.compression_method == CompressionMethod::BiRgb as u32 {
             // Pixel Array
             let pixel_data_size = bmp_image_header.image_size as usize;
-            if (pixel_data_size <= 0) {
+            if pixel_data_size <= 0 {
                 return Err(Error::InvalidPixelData);
             }
 
-            let mut pixel_array_bgra: Vec<Vec<BGRA>> = Vec::new();
-            for i in 0..bmp_image_header.height {
+            for _ in 0..bmp_image_header.height {
                 let pixel_line = load_part(line_width as usize);
 
                 let line_array = pixel_line
-                    .chunks_exact(3)
+                    .chunks_exact(bmp_image_header.bit_depth as usize / 8)
                     .map(|c| BGRA {
                         blue: c[0],
                         green: c[1],
                         red: c[2],
-                        alpha: 255,
+                        // alpha: 255,
                     })
                     .collect::<Vec<BGRA>>();
-                pixel_array_bgra.push(line_array);
+                pixel_matrix.push(line_array);
             }
-
-            Ok(BitmapFile {
-                file_header: bmp_file_header,
-                image_header: bmp_image_header,
-                pixel_array: pixel_array_bgra,
-            })
-        } else {
-            Err(Error::UnsupportedCompression)
         }
+
+        // TODO: RLE8 if time XD
+
+        Ok(BitmapFile {
+            file_header: bmp_file_header,
+            image_header: bmp_image_header,
+            pixel_array: pixel_matrix,
+        })
     }
 }
