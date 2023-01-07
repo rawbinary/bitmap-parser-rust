@@ -20,7 +20,7 @@ use byteorder::{ByteOrder, LittleEndian};
 use hex;
 
 #[derive(Debug)]
-struct BitmapFileHeader {
+pub struct BitmapFileHeader {
     signature: u16,
     size: u32,
     reserved: u32,
@@ -28,10 +28,10 @@ struct BitmapFileHeader {
 }
 
 #[derive(Debug)]
-struct BitmapImageHeader {
+pub struct BitmapImageHeader {
     header_size: u32,
-    width: i32,
-    height: i32,
+    pub width: i32,
+    pub height: i32,
     color_planes: u16,
     bit_depth: u16,
     compression_method: u32,
@@ -43,15 +43,33 @@ struct BitmapImageHeader {
 }
 
 #[derive(Debug)]
+pub struct BGRA {
+    pub blue: u8,
+    pub green: u8,
+    pub red: u8,
+    alpha: u8,
+}
+
+#[derive(Debug)]
+pub struct RGBA {
+    red: u8,
+    green: u8,
+    blue: u8,
+    alpha: u8,
+}
+
+type PixelArray = Vec<Vec<BGRA>>;
+
+#[derive(Debug)]
 pub struct BitmapFile {
-    file_header: BitmapFileHeader,
-    image_header: BitmapImageHeader, // other....
-                                     // pixel_data: Vec<u8>,
+    pub file_header: BitmapFileHeader,
+    pub image_header: BitmapImageHeader, // other....
+    pub pixel_array: PixelArray,         // pixel_data: Vec<u8>,
 }
 
 #[derive(Debug, PartialEq)]
 #[repr(u32)]
-enum CompressionMethod {
+pub enum CompressionMethod {
     BiRgb,
     BiRle8,
     BiRle4,
@@ -62,14 +80,6 @@ enum CompressionMethod {
     BiCmyk = 11,
     BiCmykrle8 = 12,
     BiCmykrle4 = 13,
-}
-
-#[derive(Debug)]
-struct BGRA {
-    blue: u8,
-    green: u8,
-    red: u8,
-    alpha: u8,
 }
 
 impl BGRA {
@@ -172,6 +182,8 @@ impl BitmapFile {
         let line_width =
             ((bmp_image_header.width * bmp_image_header.bit_depth as i32 / 8) + 3) & !3;
 
+        dbg!(line_width);
+
         file.seek(SeekFrom::Start(bmp_file_header.bits_offset as u64));
 
         if (bmp_image_header.compression_method == CompressionMethod::BiRgb as u32) {
@@ -180,60 +192,60 @@ impl BitmapFile {
             if (pixel_data_size <= 0) {
                 return Err(Error::InvalidPixelData);
             }
-            let pixel_data: Vec<u8> = load_part(pixel_data_size);
-            // let hex = |bytes: Vec<u8>| {
-            //     let str = bytes
-            //         .chunks(3)
-            //         .map(|b| format!("{:02x}", b.to_vec()).to_string())
-            //         .collect::<Vec<String>>()
-            //         .join(" ");
-            //     str
-            // };
+            let mut pixel_data: Vec<u8> = load_part(pixel_data_size);
 
-            let pixel_array: Vec<Vec<String>> = pixel_data
+            // let pixel_array: Vec<Vec<String>> = pixel_data
+            //     .chunks(line_width as usize)
+            //     .map(|line| -> Vec<String> {
+            //         hex::encode_upper(line)
+            //             .chars()
+            //             .collect::<Vec<char>>()
+            //             .chunks(6)
+            //             .filter_map(|c| {
+            //                 let pix = c.iter().collect::<String>();
+            //                 if (pix.len() == 6) {
+            //                     return Some(format!("#{0}", pix));
+            //                 } else {
+            //                     return None;
+            //                 }
+            //             })
+            //             .collect::<Vec<String>>()
+            //     })
+            //     .collect();
+
+            pixel_data.reverse();
+            let mut pixel_array_bgra = pixel_data
                 .chunks(line_width as usize)
-                .map(|line| -> Vec<String> {
-                    hex::encode_upper(line)
-                        .chars()
-                        .collect::<Vec<char>>()
-                        .chunks(6)
+                .map(|mut line| {
+                    let mut ew_line = line.to_vec().clone();
+                    let mut pixx = ew_line
+                        .chunks(3)
                         .filter_map(|c| {
-                            let pix = c.iter().collect::<String>();
-                            if (pix.len() == 6) {
-                                return Some(format!("#{0}", pix));
+                            if (c.len() == 3) {
+                                return Some(BGRA {
+                                    blue: c[0],
+                                    green: c[1],
+                                    red: c[2],
+                                    alpha: 0,
+                                });
                             } else {
                                 return None;
                             }
                         })
-                        .collect::<Vec<String>>()
+                        .collect::<Vec<BGRA>>();
+                    // pixx.reverse();
+                    pixx
                 })
-                .collect();
+                .collect::<Vec<Vec<BGRA>>>();
+            pixel_array_bgra.reverse();
 
-            dbg!(pixel_array);
-
-            // for i in 0..bmp_image_header.height - 1 {
-            //     let line = load_part(line_width as usize);
-            //     let line_ptr = line.as_ptr();
-
-            //     // for j in 0..bmp_image_header.width - 1 {
-            //     //     if (bmp_image_header.bit_depth == 24) {
-            //     //         println!("{:#04X?}", );
-            //     //     }
-            //     // }
-            //     line.chunks(3);
-            //     println!("{:#04X?}", line);
-            // }
+            Ok(BitmapFile {
+                file_header: bmp_file_header,
+                image_header: bmp_image_header,
+                pixel_array: pixel_array_bgra,
+            })
         } else {
-            println!("LOL")
+            Err(Error::UnsupportedCompression)
         }
-        //     pixel_data = load_part(pixel_data_size).to_vec();
-        // } else {
-
-        // dbg!(pixel_data);
-
-        Ok(BitmapFile {
-            file_header: bmp_file_header,
-            image_header: bmp_image_header,
-        })
     }
 }
