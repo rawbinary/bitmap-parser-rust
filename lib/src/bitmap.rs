@@ -156,7 +156,9 @@ impl BitmapFile {
         // Color Tables
 
         // Since color tables start after headers and headers can differ from types, we seek to end of header
-        file.seek(SeekFrom::Start(14 + bmp_image_header.header_size as u64));
+        if (bmp_image_header.header_size > 40) {
+            let _ = &load_part((40 - bmp_image_header.header_size) as usize);
+        }
 
         let mut color_table_size = 0;
 
@@ -182,9 +184,12 @@ impl BitmapFile {
         let line_width =
             ((bmp_image_header.width * bmp_image_header.bit_depth as i32 / 8) + 3) & !3;
 
-        dbg!(line_width);
-
-        file.seek(SeekFrom::Start(bmp_file_header.bits_offset as u64));
+        if (bmp_file_header.bits_offset > 14 + bmp_image_header.header_size + color_table_size) {
+            let _ = &load_part(
+                (bmp_file_header.bits_offset - 14 - bmp_image_header.header_size - color_table_size)
+                    as usize,
+            );
+        }
 
         if (bmp_image_header.compression_method == CompressionMethod::BiRgb as u32) {
             // Pixel Array
@@ -192,28 +197,25 @@ impl BitmapFile {
             if (pixel_data_size <= 0) {
                 return Err(Error::InvalidPixelData);
             }
+
+            // let mut pixel_array_bgra: Vec<Vec<BGRA>> = Vec::new();
+
+            // for i in 0..bmp_image_header.height {
+            //     let pixel_line = load_part(line_width as usize);
+
+            //     let line_array = pixel_line
+            //         .chunks_exact(3)
+            //         .map(|c| BGRA {
+            //             blue: c[0],
+            //             green: c[1],
+            //             red: c[2],
+            //             alpha: 255,
+            //         })
+            //         .collect::<Vec<BGRA>>();
+            //     pixel_array_bgra.push(line_array);
+            // }
+
             let mut pixel_data: Vec<u8> = load_part(pixel_data_size);
-
-            // let pixel_array: Vec<Vec<String>> = pixel_data
-            //     .chunks(line_width as usize)
-            //     .map(|line| -> Vec<String> {
-            //         hex::encode_upper(line)
-            //             .chars()
-            //             .collect::<Vec<char>>()
-            //             .chunks(6)
-            //             .filter_map(|c| {
-            //                 let pix = c.iter().collect::<String>();
-            //                 if (pix.len() == 6) {
-            //                     return Some(format!("#{0}", pix));
-            //                 } else {
-            //                     return None;
-            //                 }
-            //             })
-            //             .collect::<Vec<String>>()
-            //     })
-            //     .collect();
-
-            pixel_data.reverse();
             let mut pixel_array_bgra = pixel_data
                 .chunks(line_width as usize)
                 .map(|mut line| {
@@ -233,11 +235,9 @@ impl BitmapFile {
                             }
                         })
                         .collect::<Vec<BGRA>>();
-                    // pixx.reverse();
                     pixx
                 })
                 .collect::<Vec<Vec<BGRA>>>();
-            pixel_array_bgra.reverse();
 
             Ok(BitmapFile {
                 file_header: bmp_file_header,
