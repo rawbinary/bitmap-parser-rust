@@ -2,7 +2,7 @@
 
 A Rust implementation of Bitmap Parser.
 
-**See Demo (Typescript Web version) at: https://bitmap-parser.robin.md**
+**See Demo (Typescript Web version) at: https://bitmap-parser.ruw.sh**
 
 <img src="https://rustacean.net/assets/rustacean-flat-happy.svg" width="200px" align="right" hspace="30px" vspace="100px" />
 
